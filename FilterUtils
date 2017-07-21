@@ -1,0 +1,67 @@
+public class FilterUtils {
+	public static Class<?> jsonPropertiesClass(Class<?> bean, String name) throws NotFoundException, ClassNotFoundException, CannotCompileException {		
+		ClassPool cp = ClassPool.getDefault();
+		ClassClassPath classPath = new ClassClassPath(FilterUtils.class);  
+		cp.insertClassPath(classPath);
+		CtClass ct = cp.get(name);
+		boolean isInterface = ct.isInterface();
+		if (!isInterface) {
+			throw new IllegalArgumentException("");
+		}
+			
+		Set<String> jsonProperties = new HashSet<String>();
+		for(Object a : ct.getAnnotations()){
+			if(a instanceof JsonProperties){
+				JsonProperties jp = (JsonProperties)a;
+				String[] values = jp.value();
+				if(values !=null && values.length > 0){
+					for(String value : values){
+						jsonProperties.add(value);
+					}
+				}
+			}
+		}
+
+		ConstPool constPool = ct.getClassFile().getConstPool();
+
+		AnnotationsAttribute attr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
+
+		Annotation jsonPropertiesAnnotation = new Annotation(JsonIgnoreProperties.class.getName(), constPool);
+
+		ConstPool stringConstPool = cp.get(String.class.getName()) .getClassFile().getConstPool();
+		ArrayMemberValue arrayMemberValue = new ArrayMemberValue(stringConstPool);
+
+		Field[] fields = bean.getDeclaredFields();
+		List<StringMemberValue> jsonIgnoreProperties = new ArrayList<StringMemberValue>();
+		for(Field field : fields){
+			if(!jsonProperties.contains(field.getName())){
+				jsonIgnoreProperties.add(new StringMemberValue(field.getName(), stringConstPool));
+			}
+		}
+		
+		Class<?> superclass = bean.getSuperclass();
+		if(superclass != null){
+			Field[] superFields = superclass.getDeclaredFields();
+			if(superFields.length > 0){
+				for(Field field : superFields){
+					if(!jsonProperties.contains(field.getName())){
+						jsonIgnoreProperties.add(new StringMemberValue(field.getName(), stringConstPool));
+					}
+				}
+			}
+		}
+		
+		arrayMemberValue.setValue(jsonIgnoreProperties.toArray(new StringMemberValue[]{}));
+
+		jsonPropertiesAnnotation.addMemberValue("value", arrayMemberValue);
+		attr.setAnnotation(jsonPropertiesAnnotation);
+		ct.getClassFile().addAttribute(attr);
+		
+		if(ct.isFrozen()){
+			ct.defrost();
+		}
+		Class<?> clazz = ct.toClass();
+		ct.defrost();
+		return clazz;
+	}
+  }
