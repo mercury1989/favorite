@@ -1,0 +1,5 @@
+        FilterProvider filters = new SimpleFilterProvider().addFilter("companyFilter", SimpleBeanPropertyFilter.filterOutAllExcept("Body"))
+                .addFilter("baseFilter", SimpleBeanPropertyFilter.filterOutAllExcept("CAppNo"));
+        mapper.setFilters(filters);
+        mapper.addMixInAnnotations(QueryAppResp.class, CompanyFilter.class);
+        mapper.addMixInAnnotations(Base.class, BaseFilter.class);
